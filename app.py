@@ -130,68 +130,92 @@ if not data.empty:
             st.plotly_chart(fig_pie, use_container_width=True)
         st.info("💡 Insight: Estimación bruta (Producción x Brent Mensual).")
 
-    # 3. PREDICCIÓN IA (FORECASTING) CORREGIDO
+    # 3. PREDICCIÓN IA + ESCENARIOS ECONÓMICOS
     with tab_ia:
-        st.subheader("Proyección de Producción (12 Meses)")
-        st.markdown("Modelo de **Regresión Polinómica** aplicado sobre la producción total de la compañía.")
+        st.subheader("🔮 Bola de Cristal: Predicción y Escenarios")
+        st.markdown("Proyección de volumen basada en IA + Simulación financiera ajustando el precio del barril.")
 
-        empresa_pred = st.selectbox("Seleccionar Operadora para Simular:", operadoras_sel if operadoras_sel else lista_operadoras)
-        
-        if empresa_pred:
-            # --- CORRECCIÓN CLAVE: AGRUPACIÓN DE DATOS ---
-            # 1. Filtramos por empresa
-            df_filtered = df_view[df_view['empresa'] == empresa_pred]
+        col_config, col_graph = st.columns([1, 3])
+
+        with col_config:
+            st.markdown("#### 1. Configuración")
+            empresa_pred = st.selectbox(
+                "Operadora:", 
+                operadoras_sel if operadoras_sel else lista_operadoras,
+                key="sb_ia" # Key único para evitar conflictos
+            )
             
-            # 2. AGRUPAMOS por fecha y SUMAMOS (Esto arregla el gráfico de "electrocardiograma")
-            df_empresa = df_filtered.groupby('fecha')[['prod_pet']].sum().reset_index()
-            df_empresa = df_empresa.sort_values('fecha')
+            st.markdown("---")
+            st.markdown("#### 2. Variables de Mercado")
+            # Slider para jugar con el precio futuro
+            precio_futuro = st.slider(
+                "Precio Barril Proyectado (US$):", 
+                min_value=40, 
+                max_value=120, 
+                value=75, 
+                step=1,
+                help="Ajusta este valor para ver cómo impacta en la facturación futura."
+            )
+            
+        if empresa_pred:
+            # --- LÓGICA ML (La misma de antes) ---
+            df_filtered = df_view[df_view['empresa'] == empresa_pred]
+            df_empresa = df_filtered.groupby('fecha')[['prod_pet']].sum().reset_index().sort_values('fecha')
             
             if len(df_empresa) > 6:
-                with st.spinner(f"Entrenando cerebro digital para {empresa_pred}..."):
-                    # Ahora le pasamos la SUMA mensual, no los pozos sueltos
-                    df_prediccion = predecir_produccion(df_empresa)
+                # Entrenar y Predecir Volumen
+                df_prediccion = predecir_produccion(df_empresa)
                 
-                # Unir datos para visualizar
+                # --- NUEVA LÓGICA FINANCIERA ---
+                # Calculamos la facturación proyectada usando el precio del slider
+                # m3 * precio = USD Revenue
+                df_prediccion['revenue_proyectado'] = df_prediccion['prod_pet_pred'] * precio_futuro
+                
+                # Crear DataFrame unido para graficar volumen
                 df_hist = df_empresa.copy()
                 df_hist['tipo'] = 'Dato Real'
                 df_hist.rename(columns={'prod_pet': 'produccion'}, inplace=True)
                 
-                df_prediccion.rename(columns={'prod_pet_pred': 'produccion'}, inplace=True)
-                df_total = pd.concat([df_hist, df_prediccion])
+                df_prediccion_graf = df_prediccion.copy()
+                df_prediccion_graf.rename(columns={'prod_pet_pred': 'produccion'}, inplace=True)
                 
-                # Graficar
-                fig_forecast = px.line(
-                    df_total, x='fecha', y='produccion', color='tipo',
-                    title=f"Proyección Agregada 2026: {empresa_pred}", markers=True,
-                    color_discrete_map={"Dato Real": "blue", "Predicción IA": "orange"}
-                )
-                
-                # Línea de "Hoy"
-                fig_forecast.add_vline(
-                    x=pd.Timestamp.now().timestamp() * 1000, 
-                    line_dash="dash", 
-                    line_color="green", 
-                    annotation_text="Hoy"
-                )
-                
-                st.plotly_chart(fig_forecast, use_container_width=True)
-                
-                # Insight final
-                if not df_hist.empty and not df_prediccion.empty:
-                    ultimo_real = df_hist['produccion'].iloc[-1]
-                    ultimo_pred = df_prediccion['produccion'].iloc[-1]
+                df_total = pd.concat([df_hist, df_prediccion_graf])
+
+                with col_graph:
+                    # GRÁFICO 1: VOLUMEN FÍSICO
+                    fig_vol = px.line(
+                        df_total, x='fecha', y='produccion', color='tipo',
+                        title=f"1. Proyección de Extracción: {empresa_pred}",
+                        color_discrete_map={"Dato Real": "blue", "Predicción IA": "orange"}
+                    )
+                    fig_vol.add_vline(x=pd.Timestamp.now().timestamp() * 1000, line_dash="dash", line_color="green", annotation_text="Hoy")
+                    st.plotly_chart(fig_vol, use_container_width=True)
+
+                    # GRÁFICO 2: FLUJO DE DINERO FUTURO (NUEVO)
+                    st.markdown("#### 💵 Impacto en Facturación (Escenario: US$ " + str(precio_futuro) + "/bbl)")
                     
-                    # Evitamos división por cero
-                    if ultimo_real > 0:
-                        variacion = ((ultimo_pred - ultimo_real) / ultimo_real) * 100
-                        
-                        if variacion > 0:
-                            st.success(f"📈 Tendencia: Crecimiento proyectado del **{variacion:.1f}%** (Volumen Total).")
-                        else:
-                            st.warning(f"📉 Tendencia: Declino proyectado del **{variacion:.1f}%** (Volumen Total).")
-                    else:
-                        st.info("Datos insuficientes en el último mes para calcular variación porcentual.")
+                    fig_money = px.area(
+                        df_prediccion, 
+                        x='fecha', 
+                        y='revenue_proyectado',
+                        title=f"Flujo de Caja Proyectado 2026 ({empresa_pred})",
+                        color_discrete_sequence=['#00CC96'] # Color verde dinero
+                    )
+                    st.plotly_chart(fig_money, use_container_width=True)
+
+                # --- KPI CARDS DE RESUMEN ---
+                st.markdown("---")
+                # Calculamos totales del periodo predicho (próximos 12 meses)
+                total_vol_futuro = df_prediccion['prod_pet_pred'].sum()
+                total_plata_futura = df_prediccion['revenue_proyectado'].sum()
+                
+                kpi1, kpi2, kpi3 = st.columns(3)
+                kpi1.metric("Volumen Estimado (12 meses)", f"{total_vol_futuro/1000:,.1f} dam³")
+                kpi2.metric("Precio Simulacion", f"US$ {precio_futuro}")
+                # El dato que le importa a los inversores:
+                kpi3.metric("Facturación Proyectada", f"US$ {total_plata_futura/1_000_000:,.1f} M", delta="Proyección 2026")
+
             else:
-                st.warning("⚠️ Datos históricos insuficientes (menos de 6 meses) para entrenar el modelo.")
+                st.warning("⚠️ Datos insuficientes para proyectar.")
 else:
     st.warning("⚠️ No hay datos. Revisa la conexión a la base de datos.")
