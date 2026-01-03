@@ -164,4 +164,5 @@ def get_curvas_tipo(empresa: str):
         df = pd.read_sql(query, engine, params={"empresa": empresa})
         return df.to_dict(orient="records")
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e)} 
+    
