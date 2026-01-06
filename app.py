@@ -274,7 +274,34 @@ if st.session_state["authentication_status"]:
     else:
         st.error("Error de conexión con el Servidor. Revisa el estado de Render.")
 
+# ... (Todo el código anterior sigue igual) ...
+
 elif st.session_state["authentication_status"] is False:
-    st.error('Usuario o contraseña incorrectos')
+    st.error('❌ Usuario o contraseña incorrectos')
+    
 elif st.session_state["authentication_status"] is None:
-    st.warning('Por favor, ingresa tus credenciales')
+    # MENSAJE DE VENTA PARA VISITANTES
+    st.warning('🔒 Por favor, ingresa tus credenciales para acceder al Dashboard.')
+    
+    st.markdown("---")
+    col_promo, col_contact = st.columns(2)
+    
+    with col_promo:
+        st.info("**¿No tenés cuenta?**")
+        st.markdown("""
+        Esta es una plataforma privada de inteligencia de mercado para Vaca Muerta.
+        
+        **Incluye:**
+        *  Producción en tiempo real.
+        *  Modelado Financiero.
+        *  Curvas Tipo y Benchmarking.
+        """)
+        
+    with col_contact:
+        st.success(" **Solicitar Demo**")
+        st.markdown("""
+        Escríbenos para obtener un usuario de prueba por 7 días.
+        
+        📧 **Ventas:** lezcanojose7@gmail.com
+        📞 **Tel:** 3794631300
+        """)
