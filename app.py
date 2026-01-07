@@ -66,7 +66,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- SISTEMA DE AUTENTICACIÓN (CORREGIDO) ---
+# --- SISTEMA DE AUTENTICACIÓN (HÍBRIDO) ---
 # Intentamos cargar desde Secrets (Nube) o Archivo Local (PC) para que no falle.
 try:
     if 'credentials' in st.secrets:
@@ -78,7 +78,7 @@ except FileNotFoundError:
     st.error("⚠️ No se encontró configuración de acceso. Sube 'config.yaml' o configura los Secrets.")
     st.stop()
 
-# Manejo seguro de diccionarios para compatibilidad entre YAML y Secrets
+# Manejo seguro de tipos de datos (Convertimos a dict si viene de Secrets)
 credentials = config['credentials'].to_dict() if hasattr(config['credentials'], 'to_dict') else config['credentials']
 cookie_cfg = config['cookie'].to_dict() if hasattr(config['cookie'], 'to_dict') else config['cookie']
 
