@@ -229,3 +229,4 @@ def get_venteo_kpi():
     except Exception as e:
         print(f"Error Venteo: {e}")
         return []
+# --- FIN DEL CÓDIGO ---
