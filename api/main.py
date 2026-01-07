@@ -190,20 +190,19 @@ def get_curvas_tipo(empresa: str):
 def get_venteo_kpi():
     """
     Calcula el Ratio de Venteo (Gas Flaring) por empresa.
-    Fórmula: (Gas Venteado / (Gas Producción + Gas Venteado)) * 100
     """
     engine = get_db_engine()
     
-    # Usamos COALESCE para evitar divisiones por cero o nulos
+    # CORRECCIÓN: Usamos 'prod_gas' en lugar de 'gas_prod'
     query = text("""
         SELECT 
             empresa,
-            SUM(gas_prod) as total_gas_prod,
+            SUM(prod_gas) as total_gas_prod,
             SUM(gas_venteo) as total_gas_venteo
         FROM produccion
         WHERE fecha_data >= '2023-01-01'
         GROUP BY empresa
-        HAVING SUM(gas_prod) > 1000000 -- Filtramos empresas muy chicas
+        HAVING SUM(prod_gas) > 1000000
         ORDER BY total_gas_prod DESC
     """)
     
@@ -216,7 +215,6 @@ def get_venteo_kpi():
                 venteo = row[2] or 0
                 total = prod + venteo
                 
-                # Evitamos dividir por cero
                 ratio = (venteo / total * 100) if total > 0 else 0
                 
                 data.append({
@@ -225,10 +223,9 @@ def get_venteo_kpi():
                     "volumen_venteado": venteo
                 })
             
-            # Ordenamos por quién ventea MÁS (el "Ranking de la Vergüenza" o de Oportunidad)
             data.sort(key=lambda x: x['ratio_venteo'], reverse=True)
             
-        return data[:10] # Top 10
+        return data[:10]
     except Exception as e:
         print(f"Error Venteo: {e}")
         return []
